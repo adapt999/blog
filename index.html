@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Blog</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #333;
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .entry-form input, .entry-form textarea {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .entry-form button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+    .entry {
+      background: #fff;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .entry-date {
+      font-size: 0.9em;
+      color: #555;
+      margin-bottom: 0.5rem;
+    }
+    .entry-title {
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-bottom: 0.5rem;
+    }
+    .entry-tags {
+      margin-top: 0.5rem;
+      font-size: 0.9em;
+      color: #0073e6;
+    }
+    .tag {
+      cursor: pointer;
+      margin-right: 5px;
+      color: #0073e6;
+      text-decoration: underline;
+    }
+    .tag:hover {
+      color: #005bb5;
+    }
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .delete-btn:hover {
+      background: #c0392b;
+    }
+    #filter {
+      margin: 1rem 0;
+      padding: 0.5rem;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Personal Blog</h1>
+  </header>
+
+  <main>
+    <section class="entry-form">
+      <h2>New Entry</h2>
+      <input type="text" id="entryTitle" placeholder="Post title">
+      <textarea id="entryText" placeholder="Write your blog entry here..."></textarea>
+      <input type="text" id="entryTags" placeholder="Enter tags (comma separated)">
+      <br>
+      <button onclick="addEntry()">Post</button>
+    </section>
+
+    <section>
+      <h2>Filter by Tag</h2>
+      <select id="filter" onchange="filterEntries()">
+        <option value="">-- Show All --</option>
+      </select>
+    </section>
+
+    <section id="entries">
+      <h2>Entries</h2>
+    </section>
+  </main>
+
+  <script>
+    // Load entries from localStorage on page load
+    window.onload = function() {
+      const savedEntries = JSON.parse(localStorage.getItem('blogEntries')) || [];
+      savedEntries.forEach((entry, index) => displayEntry(entry.title, entry.text, entry.date, entry.tags, false, index));
+      updateFilterOptions(savedEntries);
+    }
+
+    function addEntry() {
+      const title = document.getElementById('entryTitle').value.trim();
+      const text = document.getElementById('entryText').value.trim();
+      const tags = document.getElementById('entryTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+
+      if (!title || !text) return;
+
+      const date = new Date().toLocaleString();
+      const newEntry = { title, text, date, tags };
+
+      // Save to localStorage
+      let entries = JSON.parse(localStorage.getItem('blogEntries')) || [];
+      entries.unshift(newEntry);
+      localStorage.setItem('blogEntries', JSON.stringify(entries));
+
+      displayEntry(title, text, date, tags, true, 0);
+      updateFilterOptions(entries);
+
+      document.getElementById('entryTitle').value = '';
+      document.getElementById('entryText').value = '';
+      document.getElementById('entryTags').value = '';
+    }
+
+    function displayEntry(title, text, date, tags, insertAtTop = false, index = null) {
+      const entriesSection = document.getElementById('entries');
+      const entryDiv = document.createElement('div');
+      entryDiv.className = 'entry';
+
+      const entries = JSON.parse(localStorage.getItem('blogEntries')) || [];
+      const entryIndex = index !== null ? index : entries.length - 1;
+
+      const tagLinks = tags.map(tag => `<span class="tag" onclick="filterByTag('${tag}')">${tag}</span>`).join(' ');
+
+      entryDiv.innerHTML = `
+        <div class="entry-date">${date}</div>
+        <div class="entry-title">${title}</div>
+        <div class="entry-text">${text}</div>
+        <div class="entry-tags">Tags: ${tagLinks}</div>
+        <button class="delete-btn" onclick="deleteEntry(${entryIndex}, this)">Delete</button>
+      `;
+
+      if (insertAtTop) {
+        entriesSection.insertBefore(entryDiv, entriesSection.children[1]);
+      } else {
+        entriesSection.appendChild(entryDiv);
+      }
+    }
+
+    function deleteEntry(index, button) {
+      let entries = JSON.parse(localStorage.getItem('blogEntries')) || [];
+      entries.splice(index, 1);
+      localStorage.setItem('blogEntries', JSON.stringify(entries));
+      button.parentElement.remove();
+      refreshEntries();
+    }
+
+    function refreshEntries(filterTag = '') {
+      const entriesSection = document.getElementById('entries');
+      entriesSection.innerHTML = '<h2>Entries</h2>';
+      const savedEntries = JSON.parse(localStorage.getItem('blogEntries')) || [];
+      savedEntries.forEach((entry, index) => {
+        if (!filterTag || entry.tags.includes(filterTag)) {
+          displayEntry(entry.title, entry.text, entry.date, entry.tags, false, index);
+        }
+      });
+    }
+
+    function updateFilterOptions(entries) {
+      const filterSelect = document.getElementById('filter');
+      const allTags = [...new Set(entries.flatMap(entry => entry.tags))];
+      const currentValue = filterSelect.value;
+
+      filterSelect.innerHTML = '<option value="">-- Show All --</option>';
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        filterSelect.appendChild(option);
+      });
+
+      filterSelect.value = currentValue;
+    }
+
+    function filterEntries() {
+      const filterTag = document.getElementById('filter').value;
+      refreshEntries(filterTag);
+    }
+
+    function filterByTag(tag) {
+      document.getElementById('filter').value = tag;
+      refreshEntries(tag);
+    }
+  </script>
+</body>
+</html>
